@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transmissão e Gravação de Vídeo</title>
+</head>
+<body bgcolor="pink">
+    <video id="localVideo" autoplay muted></video>
+    <button id="startButton">Iniciar Transmissão e Gravação</button>
+    <button id="stopButton">Parar Gravação</button>
+
+    <script>
+        const constraints = { video: true, audio: true };
+        let localStream;
+        let mediaRecorder;
+        let recordedBlobs = [];
+
+        const handleDataAvailable = (event) => {
+            if (event.data && event.data.size > 0) {
+                recordedBlobs.push(event.data);
+            }
+        };
+
+        const handleStop = () => {
+            const blob = new Blob(recordedBlobs, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'video.webm';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        };
+
+        const startStream = async () => {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const localVideo = document.getElementById('localVideo');
+                localVideo.srcObject = localStream;
+                localVideo.style.display = 'none';
+
+                const stream = localVideo.captureStream();
+                const options = { mimeType: 'video/webm;codecs=vp9' };
+                mediaRecorder = new MediaRecorder(stream, options);
+
+                mediaRecorder.ondataavailable = handleDataAvailable;
+                mediaRecorder.onstop = handleStop;
+
+                mediaRecorder.start();
+            } catch (error) {
+                console.error('Erro ao acessar a câmera: ', error);
+            }
+        };
+
+        const stopStream = () => {
+            mediaRecorder.stop();
+            localStream.getTracks().forEach((track) => track.stop());
+        };
+
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+
+        startButton.addEventListener('click', () => {
+            startStream();
+            startButton.disabled = true;
+            stopButton.disabled = false;
+        });
+
+        stopButton.addEventListener('click', () => {
+            stopStream();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        });
+    </script>
+</body>
+</html>
